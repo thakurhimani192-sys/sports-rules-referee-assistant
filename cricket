@@ -1,0 +1,74 @@
+# Sports Rules & Referee Assistant
+# Real-Time Chatbot using FastAPI + NLP
+
+from fastapi import FastAPI
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
+
+app = FastAPI()
+
+# -------------------------------
+# Step 1: Load Embedding Model
+# -------------------------------
+
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# -------------------------------
+# Step 2: Sports Rules Database
+# -------------------------------
+
+rules = [
+    "In cricket, a batsman is out LBW if the ball hits the pad in line with the stumps.",
+    "In football, a goal is scored when the ball fully crosses the goal line.",
+    "In basketball, a player cannot run without dribbling the ball.",
+    "In badminton, a match is played to 21 points.",
+    "In tennis, a player must win by at least 2 points."
+]
+
+# -------------------------------
+# Step 3: Convert Rules to Vectors
+# -------------------------------
+
+rule_embeddings = model.encode(rules)
+
+dimension = rule_embeddings.shape[1]
+
+index = faiss.IndexFlatL2(dimension)
+index.add(np.array(rule_embeddings))
+
+# -------------------------------
+# Step 4: Search Function
+# -------------------------------
+
+def search_rule(question):
+
+    question_embedding = model.encode([question])
+
+    distance, index_result = index.search(
+        np.array(question_embedding), k=1
+    )
+
+    return rules[index_result[0][0]]
+
+# -------------------------------
+# Step 5: API Endpoint
+# -------------------------------
+
+@app.get("/ask")
+
+def ask_question(question: str):
+
+    answer = search_rule(question)
+
+    return {
+        "question": question,
+        "answer": answer
+    }
+
+# -------------------------------
+# Step 6: Run Server
+# -------------------------------
+
+# Run with command:
+# uvicorn main:app --reload
